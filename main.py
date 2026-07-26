@@ -8,11 +8,11 @@ archivo = 'mis_ahorros.csv'
 def main(page: ft.Page):
     # --- 1. CONFIGURACIÓN DE LA PANTALLA ---
     page.title = "Control de Ahorros"
-    page.bgcolor = "bluegrey50"
+    # Usamos colores dinámicos para que el modo oscuro/claro funcione bien
+    page.bgcolor = ft.colors.BACKGROUND 
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.START
-    page.theme_mode = ft.ThemeMode.LIGHT
-    # Permitir que el contenido se pueda desplazar si la pantalla del celular es pequeña
+    page.theme_mode = ft.ThemeMode.SYSTEM # Por defecto usa el del celular
     page.scroll = ft.ScrollMode.AUTO 
 
     if not os.path.exists(archivo):
@@ -41,23 +41,21 @@ def main(page: ft.Page):
     ingresos_val, gastos_val, beneficio_val = obtener_resumen()
 
     # --- 3. ELEMENTOS VISUALES PRINCIPALES ---
-    titulo = ft.Text("MI BILLETERA", size=24, weight=ft.FontWeight.BOLD, color="indigo900")
-
-    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color="green700")
-    txt_gastos = ft.Text(f"{gastos_val:.2f}", color="red700")
-    txt_beneficio = ft.Text(f"{beneficio_val:.2f}", weight="bold", color="black")
+    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color=ft.colors.GREEN)
+    txt_gastos = ft.Text(f"{gastos_val:.2f}", color=ft.colors.RED)
+    txt_beneficio = ft.Text(f"{beneficio_val:.2f}", weight="bold", color=ft.colors.ON_SURFACE)
 
     tabla_resumen = ft.DataTable(
-        bgcolor="white",
+        bgcolor=ft.colors.SURFACE,
         border_radius=10,
         columns=[
-            ft.DataColumn(ft.Text("Concepto", weight="bold", color="black87")),
-            ft.DataColumn(ft.Text("Monto", weight="bold", color="black87"), numeric=True),
+            ft.DataColumn(ft.Text("Concepto", weight="bold", color=ft.colors.ON_SURFACE)),
+            ft.DataColumn(ft.Text("Monto", weight="bold", color=ft.colors.ON_SURFACE), numeric=True),
         ],
         rows=[
-            ft.DataRow(cells=[ft.DataCell(ft.Text("Ingresos (+)", color="green700", weight="bold")), ft.DataCell(txt_ingresos)]),
-            ft.DataRow(cells=[ft.DataCell(ft.Text("Gastos (-)", color="red700", weight="bold")), ft.DataCell(txt_gastos)]),
-            ft.DataRow(cells=[ft.DataCell(ft.Text("BENEFICIO", weight="bold", color="black")), ft.DataCell(txt_beneficio)]),
+            ft.DataRow(cells=[ft.DataCell(ft.Text("Ingresos (+)", color=ft.colors.GREEN, weight="bold")), ft.DataCell(txt_ingresos)]),
+            ft.DataRow(cells=[ft.DataCell(ft.Text("Gastos (-)", color=ft.colors.RED, weight="bold")), ft.DataCell(txt_gastos)]),
+            ft.DataRow(cells=[ft.DataCell(ft.Text("BENEFICIO", weight="bold", color=ft.colors.ON_SURFACE)), ft.DataCell(txt_beneficio)]),
         ]
     )
 
@@ -72,15 +70,75 @@ def main(page: ft.Page):
         dialogo.open = False
         page.update()
 
-    # --- 4. INICIALIZACIÓN DE MODALES ---
+    def abrir_modal(dialogo):
+        dialogo.open = True
+        page.update()
+
+    # --- 4. INICIALIZACIÓN DE MODALES Y MENÚ ---
     dlg_agregar = ft.AlertDialog(content=ft.Container())
     dlg_historial = ft.AlertDialog(content=ft.Container())
     dlg_confirmar = ft.AlertDialog(content=ft.Container())
     dlg_buscar = ft.AlertDialog(content=ft.Container())
+    
+    # A) LÓGICA DEL MENÚ DE TEMAS
+    def cambiar_tema(e):
+        if e.control.value == "claro":
+            page.theme_mode = ft.ThemeMode.LIGHT
+        elif e.control.value == "oscuro":
+            page.theme_mode = ft.ThemeMode.DARK
+        else:
+            page.theme_mode = ft.ThemeMode.SYSTEM
+        page.update()
 
-    page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar])
+    opciones_tema = ft.RadioGroup(
+        content=ft.Column([
+            ft.Radio(value="claro", label="Claro"),
+            ft.Radio(value="oscuro", label="Oscuro"),
+            ft.Radio(value="sistema", label="Del celular")
+        ]),
+        on_change=cambiar_tema,
+        value="sistema"
+    )
 
-    # A) LÓGICA MODAL AGREGAR
+    dlg_temas = ft.AlertDialog(
+        title=ft.Text("Seleccionar Tema"),
+        content=opciones_tema,
+        actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_temas))]
+    )
+
+    # B) LÓGICA DEL MENÚ DE DETALLES
+    dlg_detalles = ft.AlertDialog(
+        title=ft.Text("Detalles de la App", weight="bold"),
+        content=ft.Column([
+            ft.Text("Versión: 1.0.0"),
+            ft.Text("Desarrollador: Fabián"),
+            ft.Text("Contacto: mail de un fabi")
+        ], tight=True),
+        actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_detalles))]
+    )
+
+    page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar, dlg_temas, dlg_detalles])
+
+    # --- 5. MENÚ SUPERIOR (TRES PUNTITOS) ---
+    menu_opciones = ft.PopupMenuButton(
+        icon=ft.icons.MORE_VERT,
+        items=[
+            ft.PopupMenuItem(text="Temas", icon=ft.icons.PALETTE, on_click=lambda e: abrir_modal(dlg_temas)),
+            ft.PopupMenuItem(text="Detalles", icon=ft.icons.INFO, on_click=lambda e: abrir_modal(dlg_detalles)),
+        ]
+    )
+
+    encabezado = ft.Row(
+        controls=[
+            menu_opciones,
+            ft.Container(width=30), # Espaciador para centrar el título visualmente
+            ft.Text("MI BILLETERA", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.PRIMARY)
+        ],
+        alignment=ft.MainAxisAlignment.START,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER
+    )
+
+    # --- 6. LÓGICA MODAL AGREGAR ---
     input_monto = ft.TextField(label="Monto (+ o -)", prefix_icon="attach_money")
     input_desc = ft.TextField(label="Descripción", prefix_icon="description")
 
@@ -112,12 +170,11 @@ def main(page: ft.Page):
         dlg_agregar.content = ft.Column([input_monto, input_desc], tight=True)
         dlg_agregar.actions = [
             ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_agregar)),
-            ft.Button("Guardar", on_click=guardar_transaccion, bgcolor="indigo700", color="white")
+            ft.ElevatedButton("Guardar", on_click=guardar_transaccion, bgcolor=ft.colors.PRIMARY, color=ft.colors.ON_PRIMARY)
         ]
-        dlg_agregar.open = True
-        page.update()
+        abrir_modal(dlg_agregar)
 
-    # B) LÓGICA MODAL HISTORIAL CON ELIMINACIÓN
+    # --- 7. LÓGICA MODAL HISTORIAL CON ELIMINACIÓN ---
     container_lista_historial = ft.Column([], scroll=ft.ScrollMode.AUTO, height=220)
     items_historial = []
     modo_borrar = [False]
@@ -148,9 +205,9 @@ def main(page: ft.Page):
     def abrir_confirmacion_borrado(filas_a_borrar):
         detalles_column = ft.Column([], scroll=ft.ScrollMode.AUTO, height=150)
         for f in filas_a_borrar:
-            detalles_column.controls.append(ft.Text(f"• [{f[1]}] {f[2]} ({f[0]})", size=12, color="black87"))
+            detalles_column.controls.append(ft.Text(f"• [{f[1]}] {f[2]} ({f[0]})", size=12))
 
-        dlg_confirmar.title = ft.Text("¿Estás seguro?", color="red900", weight="bold")
+        dlg_confirmar.title = ft.Text("¿Estás seguro?", color=ft.colors.ERROR, weight="bold")
         dlg_confirmar.content = ft.Column([
             ft.Text("Se eliminarán permanentemente los siguientes elementos:"),
             ft.Divider(),
@@ -158,10 +215,9 @@ def main(page: ft.Page):
         ], tight=True, width=300)
         dlg_confirmar.actions = [
             ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_confirmar)),
-            ft.Button("Sí, Eliminar", on_click=lambda ev: ejecutar_eliminacion_final(ev, filas_a_borrar), bgcolor="red700", color="white")
+            ft.ElevatedButton("Sí, Eliminar", on_click=lambda ev: ejecutar_eliminacion_final(ev, filas_a_borrar), bgcolor=ft.colors.ERROR, color=ft.colors.ON_ERROR)
         ]
-        dlg_confirmar.open = True
-        page.update()
+        abrir_modal(dlg_confirmar)
 
     def alternar_modo_eliminacion(btn_activar_eliminar):
         if not modo_borrar[0]:
@@ -169,8 +225,8 @@ def main(page: ft.Page):
             for chk, _ in items_historial:
                 chk.visible = True
             btn_activar_eliminar.text = "Confirmar Borrado"
-            btn_activar_eliminar.bgcolor = "red700"
-            btn_activar_eliminar.color = "white"
+            btn_activar_eliminar.bgcolor = ft.colors.ERROR
+            btn_activar_eliminar.color = ft.colors.ON_ERROR
         else:
             seleccionados = [fila for chk, fila in items_historial if chk.value]
             if not seleccionados:
@@ -202,13 +258,13 @@ def main(page: ft.Page):
                         container_lista_historial.controls.append(fila_ui)
 
         if not items_historial:
-            container_lista_historial.controls.append(ft.Text("Sin registros en el historial.", color="grey"))
+            container_lista_historial.controls.append(ft.Text("Sin registros en el historial.", color=ft.colors.OUTLINE))
 
     def abrir_historial(e):
         modo_borrar[0] = False
         cargar_filas_historial()
 
-        btn_activar_eliminar = ft.Button("Eliminar", bgcolor="red50", color="red900")
+        btn_activar_eliminar = ft.ElevatedButton("Eliminar", bgcolor=ft.colors.ERROR_CONTAINER, color=ft.colors.ON_ERROR_CONTAINER)
         btn_activar_eliminar.on_click = lambda ev: alternar_modo_eliminacion(btn_activar_eliminar)
 
         dlg_historial.title = ft.Text("Historial Completo")
@@ -230,10 +286,9 @@ def main(page: ft.Page):
             ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))
         ]
         dlg_historial.actions_alignment = ft.MainAxisAlignment.SPACE_BETWEEN
-        dlg_historial.open = True
-        page.update()
+        abrir_modal(dlg_historial)
 
-    # C) LÓGICA MODAL BUSCAR POR FECHA
+    # --- 8. LÓGICA MODAL BUSCAR POR FECHA ---
     in_dia = ft.TextField(label="Día (ej: 5)", width=90)
     in_mes = ft.TextField(label="Mes (ej: 8)", width=90)
     in_anio = ft.TextField(label="Año (ej: 2026)", width=120)
@@ -247,7 +302,7 @@ def main(page: ft.Page):
         a_val = in_anio.value.strip() if in_anio.value else ""
 
         if not d_val and not m_val and not a_val:
-            resultados_column.controls.append(ft.Text("Ingresa al menos un dato.", color="red"))
+            resultados_column.controls.append(ft.Text("Ingresa al menos un dato.", color=ft.colors.ERROR))
             page.update()
             return
 
@@ -269,12 +324,12 @@ def main(page: ft.Page):
                 for fila in reader:
                     if len(fila) >= 3 and fecha_busqueda in fila[0]:
                         resultados_column.controls.append(
-                            ft.Text(f"• [{fila[1]}] {fila[2]} ({fila[0]})", color="black87")
+                            ft.Text(f"• [{fila[1]}] {fila[2]} ({fila[0]})")
                         )
                         encontrados += 1
 
         if encontrados == 0:
-            resultados_column.controls.append(ft.Text("No se encontraron registros.", color="red"))
+            resultados_column.controls.append(ft.Text("No se encontraron registros.", color=ft.colors.ERROR))
         page.update()
 
     def abrir_buscar(e):
@@ -287,36 +342,35 @@ def main(page: ft.Page):
         dlg_buscar.content = ft.Column([
             ft.Row([in_dia, in_mes], spacing=10),
             in_anio,
-            ft.Button("Buscar", on_click=ejecutar_busqueda, bgcolor="indigo700", color="white"),
+            ft.ElevatedButton("Buscar", on_click=ejecutar_busqueda, bgcolor=ft.colors.PRIMARY, color=ft.colors.ON_PRIMARY),
             ft.Divider(),
             resultados_column
         ], tight=True, height=350)
         dlg_buscar.actions = [ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_buscar))]
-        dlg_buscar.open = True
-        page.update()
+        abrir_modal(dlg_buscar)
 
-    # --- 5. BOTONES EN PANTALLA ---
-    btn_agregar = ft.Button(
+    # --- 9. BOTONES EN PANTALLA (CON ESTILOS MEJORADOS) ---
+    btn_agregar = ft.ElevatedButton(
         content=ft.Row(
-            [ft.Icon("add_circle", color="white"), ft.Text("AGREGAR", size=18, weight=ft.FontWeight.BOLD, color="white")],
+            [ft.Icon("add_circle", color=ft.colors.ON_PRIMARY), ft.Text("AGREGAR", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.ON_PRIMARY)],
             alignment=ft.MainAxisAlignment.CENTER,
         ),
         width=260, height=65,
-        style=ft.ButtonStyle(bgcolor="indigo700", shape=ft.RoundedRectangleBorder(radius=15)),
+        style=ft.ButtonStyle(bgcolor=ft.colors.PRIMARY, shape=ft.RoundedRectangleBorder(radius=15)),
         on_click=abrir_agregar
     )
 
-    btn_buscar = ft.Button(
-        content=ft.Row([ft.Icon("search", color="indigo900"), ft.Text("Buscar", color="indigo900")], alignment=ft.MainAxisAlignment.CENTER),
-        width=115, height=45,
-        style=ft.ButtonStyle(bgcolor="indigo100", shape=ft.RoundedRectangleBorder(radius=10)),
+    btn_buscar = ft.ElevatedButton(
+        content=ft.Row([ft.Icon("search", color=ft.colors.PRIMARY), ft.Text("Buscar", color=ft.colors.PRIMARY)], alignment=ft.MainAxisAlignment.CENTER),
+        width=125, height=45,
+        style=ft.ButtonStyle(bgcolor=ft.colors.PRIMARY_CONTAINER, shape=ft.RoundedRectangleBorder(radius=10)),
         on_click=abrir_buscar
     )
 
-    btn_historial = ft.Button(
-        content=ft.Row([ft.Icon("history", color="indigo900"), ft.Text("Historial", color="indigo900")], alignment=ft.MainAxisAlignment.CENTER),
-        width=115, height=45,
-        style=ft.ButtonStyle(bgcolor="indigo100", shape=ft.RoundedRectangleBorder(radius=10)),
+    btn_historial = ft.ElevatedButton(
+        content=ft.Row([ft.Icon("history", color=ft.colors.PRIMARY), ft.Text("Historial", color=ft.colors.PRIMARY)], alignment=ft.MainAxisAlignment.CENTER),
+        width=125, height=45,
+        style=ft.ButtonStyle(bgcolor=ft.colors.PRIMARY_CONTAINER, shape=ft.RoundedRectangleBorder(radius=10)),
         on_click=abrir_historial
     )
 
@@ -326,14 +380,11 @@ def main(page: ft.Page):
         controls=[btn_buscar, btn_historial]
     )
 
-    # --- 6. CONTENEDOR MODO CELULAR ---
-    # Eliminamos el alignment conflictivo aquí. 
-    # El centrado lo manejará la propia página y la columna.
+    # --- 10. CONTENEDOR MODO CELULAR ---
     contenedor_celular = ft.Container(
         content=ft.Column(
             controls=[
-                ft.Container(height=20),
-                titulo,
+                encabezado,  # Aquí incluimos la fila con los 3 puntitos y el título
                 ft.Container(height=10),
                 tabla_resumen,
                 ft.Container(height=50),
@@ -345,11 +396,12 @@ def main(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER
         ),
-        width=380
+        width=380,
+        padding=10
     )
 
     page.add(contenedor_celular)
     page.update()
 
 ft.app(target=main)
-    
+            
