@@ -116,10 +116,10 @@ def main(page: ft.Page):
     # --- 5. SOLUCIÓN DEL MENÚ SUPERIOR: APPBAR NATIVA ---
     page.appbar = ft.AppBar(
         leading=ft.PopupMenuButton(
-            icon=ft.icons.MORE_VERT,
+            icon="more_vert", # <--- CORREGIDO AQUÍ
             items=[
-                ft.PopupMenuItem(text="Temas", icon=ft.icons.PALETTE, on_click=lambda e: abrir_modal(dlg_temas)),
-                ft.PopupMenuItem(text="Detalles", icon=ft.icons.INFO, on_click=lambda e: abrir_modal(dlg_detalles)),
+                ft.PopupMenuItem(text="Temas", icon="palette", on_click=lambda e: abrir_modal(dlg_temas)), # <--- CORREGIDO AQUÍ
+                ft.PopupMenuItem(text="Detalles", icon="info", on_click=lambda e: abrir_modal(dlg_detalles)), # <--- CORREGIDO AQUÍ
             ]
         ),
         title=ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
@@ -392,4 +392,4 @@ def main(page: ft.Page):
     page.update()
 
 ft.app(target=main)
-                
+    
