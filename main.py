@@ -340,11 +340,10 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER
         ),
         width=380,
-        alignment=ft.alignment.center
+        alignment=ft.alignment.center  # <-- CORREGIDO AQUÍ
     )
 
     page.add(contenedor_celular)
     page.update()
 
-# --- EJECUCIÓN CORRECTA EN GOOGLE COLAB PARA FLET 0.80+ ---
 ft.app(target=main)
