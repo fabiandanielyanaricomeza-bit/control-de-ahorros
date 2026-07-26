@@ -113,21 +113,21 @@ def main(page: ft.Page):
 
     page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar, dlg_temas, dlg_detalles])
 
-    # --- 5. SOLUCIÓN DEFINITIVA: BOTONES DE ICONO DIRECTOS EN LA APPBAR ---
+    # --- 5. SOLUCIÓN BLINDADA: BOTONES DE TEXTO EN LA BARRA SUPERIOR ---
     page.appbar = ft.AppBar(
-        title=ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
-        center_title=False,  # Movido a la izquierda para dejar espacio a los botones
+        title=ft.Text("BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
+        center_title=False,
         bgcolor="#E8EAF6",
         actions=[
-            ft.IconButton(icon="palette", tooltip="Cambiar Tema", icon_color="#1A237E", on_click=lambda e: abrir_modal(dlg_temas)),
-            ft.IconButton(icon="info", tooltip="Detalles", icon_color="#1A237E", on_click=lambda e: abrir_modal(dlg_detalles)),
-            ft.Container(width=5) # Espacio al borde
+            ft.TextButton("TEMA", on_click=lambda e: abrir_modal(dlg_temas), style=ft.ButtonStyle(color="#1A237E")),
+            ft.TextButton("INFO", on_click=lambda e: abrir_modal(dlg_detalles), style=ft.ButtonStyle(color="#1A237E")),
+            ft.Container(width=5)
         ]
     )
 
     # --- 6. LÓGICA MODAL AGREGAR ---
-    input_monto = ft.TextField(label="Monto (+ o -)", prefix_icon="attach_money")
-    input_desc = ft.TextField(label="Descripción", prefix_icon="description")
+    input_monto = ft.TextField(label="Monto (+ o -)")
+    input_desc = ft.TextField(label="Descripción")
 
     def guardar_transaccion(e):
         try:
@@ -336,28 +336,37 @@ def main(page: ft.Page):
         dlg_buscar.actions = [ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_buscar))]
         abrir_modal(dlg_buscar)
 
-    # --- 9. BOTONES EN PANTALLA ---
+    # --- 9. BOTONES EN PANTALLA (SOLO TEXTO Y ESTILO) ---
     btn_agregar = ft.ElevatedButton(
-        content=ft.Row(
-            [ft.Icon("add_circle", color="#FFFFFF"), ft.Text("AGREGAR", size=18, weight=ft.FontWeight.BOLD, color="#FFFFFF")],
-            alignment=ft.MainAxisAlignment.CENTER,
-        ),
+        text="AGREGAR",
         width=260, height=65,
-        style=ft.ButtonStyle(bgcolor="#1A237E", shape=ft.RoundedRectangleBorder(radius=15)),
+        style=ft.ButtonStyle(
+            bgcolor="#1A237E", 
+            color="#FFFFFF",
+            shape=ft.RoundedRectangleBorder(radius=15)
+        ),
         on_click=abrir_agregar
     )
 
     btn_buscar = ft.ElevatedButton(
-        content=ft.Row([ft.Icon("search", color="#1A237E"), ft.Text("Buscar", color="#1A237E")], alignment=ft.MainAxisAlignment.CENTER),
+        text="BUSCAR",
         width=125, height=45,
-        style=ft.ButtonStyle(bgcolor="#C5CAE9", shape=ft.RoundedRectangleBorder(radius=10)),
+        style=ft.ButtonStyle(
+            bgcolor="#C5CAE9", 
+            color="#1A237E",
+            shape=ft.RoundedRectangleBorder(radius=10)
+        ),
         on_click=abrir_buscar
     )
 
     btn_historial = ft.ElevatedButton(
-        content=ft.Row([ft.Icon("history", color="#1A237E"), ft.Text("Historial", color="#1A237E")], alignment=ft.MainAxisAlignment.CENTER),
+        text="HISTORIAL",
         width=125, height=45,
-        style=ft.ButtonStyle(bgcolor="#C5CAE9", shape=ft.RoundedRectangleBorder(radius=10)),
+        style=ft.ButtonStyle(
+            bgcolor="#C5CAE9", 
+            color="#1A237E",
+            shape=ft.RoundedRectangleBorder(radius=10)
+        ),
         on_click=abrir_historial
     )
 
@@ -390,4 +399,4 @@ def main(page: ft.Page):
     page.update()
 
 ft.app(target=main)
-        
+            
