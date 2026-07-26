@@ -113,18 +113,16 @@ def main(page: ft.Page):
 
     page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar, dlg_temas, dlg_detalles])
 
-    # --- 5. SOLUCIÓN DEL MENÚ SUPERIOR: APPBAR NATIVA ---
+    # --- 5. SOLUCIÓN DEFINITIVA: BOTONES DE ICONO DIRECTOS EN LA APPBAR ---
     page.appbar = ft.AppBar(
-        leading=ft.PopupMenuButton(
-            icon="more_vert", # <--- CORREGIDO AQUÍ
-            items=[
-                ft.PopupMenuItem(text="Temas", icon="palette", on_click=lambda e: abrir_modal(dlg_temas)), # <--- CORREGIDO AQUÍ
-                ft.PopupMenuItem(text="Detalles", icon="info", on_click=lambda e: abrir_modal(dlg_detalles)), # <--- CORREGIDO AQUÍ
-            ]
-        ),
         title=ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
-        center_title=True,
-        bgcolor="#E8EAF6"
+        center_title=False,  # Movido a la izquierda para dejar espacio a los botones
+        bgcolor="#E8EAF6",
+        actions=[
+            ft.IconButton(icon="palette", tooltip="Cambiar Tema", icon_color="#1A237E", on_click=lambda e: abrir_modal(dlg_temas)),
+            ft.IconButton(icon="info", tooltip="Detalles", icon_color="#1A237E", on_click=lambda e: abrir_modal(dlg_detalles)),
+            ft.Container(width=5) # Espacio al borde
+        ]
     )
 
     # --- 6. LÓGICA MODAL AGREGAR ---
@@ -392,4 +390,4 @@ def main(page: ft.Page):
     page.update()
 
 ft.app(target=main)
-    
+        
