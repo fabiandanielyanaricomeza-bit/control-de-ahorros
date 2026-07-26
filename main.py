@@ -340,7 +340,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER
         ),
         width=380,
-        alignment=ft.alignment.center  # <-- CORREGIDO AQUÍ
+        alignment=ft.alignment.center
     )
 
     page.add(contenedor_celular)
