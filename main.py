@@ -38,8 +38,8 @@ def main(page: ft.Page):
     ingresos_val, gastos_val, beneficio_val = obtener_resumen()
 
     # --- 3. ELEMENTOS VISUALES PRINCIPALES ---
-    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color="#4CAF50") # Verde Hex
-    txt_gastos = ft.Text(f"{gastos_val:.2f}", color="#F44336") # Rojo Hex
+    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color="#4CAF50") 
+    txt_gastos = ft.Text(f"{gastos_val:.2f}", color="#F44336") 
     txt_beneficio = ft.Text(f"{beneficio_val:.2f}", weight="bold")
 
     tabla_resumen = ft.DataTable(
@@ -70,59 +70,19 @@ def main(page: ft.Page):
         dialogo.open = True
         page.update()
 
-    # --- 4. MODALES DE TEMAS Y DETALLES ---
+    # --- 4. MODALES PRINCIPALES ---
     dlg_agregar = ft.AlertDialog(content=ft.Container())
     dlg_historial = ft.AlertDialog(content=ft.Container())
     dlg_confirmar = ft.AlertDialog(content=ft.Container())
     dlg_buscar = ft.AlertDialog(content=ft.Container())
     
-    def cambiar_tema(e):
-        if e.control.value == "claro":
-            page.theme_mode = ft.ThemeMode.LIGHT
-        elif e.control.value == "oscuro":
-            page.theme_mode = ft.ThemeMode.DARK
-        else:
-            page.theme_mode = ft.ThemeMode.SYSTEM
-        page.update()
+    page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar])
 
-    opciones_tema = ft.RadioGroup(
-        content=ft.Column([
-            ft.Radio(value="claro", label="Claro"),
-            ft.Radio(value="oscuro", label="Oscuro"),
-            ft.Radio(value="sistema", label="Del celular")
-        ]),
-        on_change=cambiar_tema,
-        value="sistema"
-    )
-
-    dlg_temas = ft.AlertDialog(
-        title=ft.Text("Seleccionar Tema"),
-        content=opciones_tema,
-        actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_temas))]
-    )
-
-    dlg_detalles = ft.AlertDialog(
-        title=ft.Text("Detalles de la App", weight="bold"),
-        content=ft.Column([
-            ft.Text("Versión: 1.0.0"),
-            ft.Text("Desarrollador: Fabián"),
-            ft.Text("Contacto: mail de un fabi")
-        ], tight=True),
-        actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_detalles))]
-    )
-
-    page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar, dlg_temas, dlg_detalles])
-
-    # --- 5. SOLUCIÓN BLINDADA: BOTONES DE TEXTO EN LA BARRA SUPERIOR ---
+    # --- 5. BARRA SUPERIOR (LIMPIA COMO ANTES) ---
     page.appbar = ft.AppBar(
-        title=ft.Text("BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
-        center_title=False,
-        bgcolor="#E8EAF6",
-        actions=[
-            ft.TextButton("TEMA", on_click=lambda e: abrir_modal(dlg_temas), style=ft.ButtonStyle(color="#1A237E")),
-            ft.TextButton("INFO", on_click=lambda e: abrir_modal(dlg_detalles), style=ft.ButtonStyle(color="#1A237E")),
-            ft.Container(width=5)
-        ]
+        title=ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
+        center_title=True,
+        bgcolor="#E8EAF6"
     )
 
     # --- 6. LÓGICA MODAL AGREGAR ---
@@ -336,9 +296,9 @@ def main(page: ft.Page):
         dlg_buscar.actions = [ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_buscar))]
         abrir_modal(dlg_buscar)
 
-    # --- 9. BOTONES EN PANTALLA (SOLO TEXTO Y ESTILO) ---
+    # --- 9. BOTONES EN PANTALLA (TEXTO POSICIONAL) ---
     btn_agregar = ft.ElevatedButton(
-        text="AGREGAR",
+        "AGREGAR",
         width=260, height=65,
         style=ft.ButtonStyle(
             bgcolor="#1A237E", 
@@ -349,7 +309,7 @@ def main(page: ft.Page):
     )
 
     btn_buscar = ft.ElevatedButton(
-        text="BUSCAR",
+        "BUSCAR",
         width=125, height=45,
         style=ft.ButtonStyle(
             bgcolor="#C5CAE9", 
@@ -360,7 +320,7 @@ def main(page: ft.Page):
     )
 
     btn_historial = ft.ElevatedButton(
-        text="HISTORIAL",
+        "HISTORIAL",
         width=125, height=45,
         style=ft.ButtonStyle(
             bgcolor="#C5CAE9", 
@@ -399,4 +359,4 @@ def main(page: ft.Page):
     page.update()
 
 ft.app(target=main)
-    
+                                
