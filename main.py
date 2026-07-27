@@ -334,7 +334,8 @@ def main(page: ft.Page):
             modo_borrar[0] = True
             for chk, _ in items_historial: chk.visible = True
             btn_eliminar.text = "Confirmar Borrado"
-            btn_eliminar.style = ft.ButtonStyle(bgcolor="red", color="white")
+            # CAMBIO: Usamos TextButton o un estilo sin fondo rojo sólido para que no se vea mal
+            btn_eliminar.style = ft.ButtonStyle(color="red")
         else:
             seleccionados = [fila for chk, fila in items_historial if chk.value]
             if seleccionados: abrir_confirmacion_borrado(seleccionados)
@@ -352,14 +353,13 @@ def main(page: ft.Page):
                 ft.Row([chk, ft.Text(fila[0], size=10, width=105), ft.Text(fila[1], size=11, width=55, weight="bold"), ft.Text(fila[2], size=11, width=120)], spacing=5)
             )
                     
-        btn_eliminar = ft.Button("Eliminar", color="red")
+        btn_eliminar = ft.TextButton("Eliminar", style=ft.ButtonStyle(color="red"))
         btn_eliminar.on_click = lambda ev: alternar_modo_eliminacion(btn_eliminar)
         
         btn_cerrar = ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))
 
         dlg_historial.title = ft.Text("Historial")
         dlg_historial.content = container_lista_historial
-        # SOLUCIÓN: Usamos un Row con espacio distribuido para que los textos largos de los botones no se encimen
         dlg_historial.actions = [
             ft.Row(
                 [btn_eliminar, btn_cerrar],
@@ -398,4 +398,4 @@ def main(page: ft.Page):
     page.update()
 
 ft.app(target=main)
-        
+    
