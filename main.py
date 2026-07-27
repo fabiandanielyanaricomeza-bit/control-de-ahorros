@@ -354,9 +354,19 @@ def main(page: ft.Page):
                     
         btn_eliminar = ft.Button("Eliminar", color="red")
         btn_eliminar.on_click = lambda ev: alternar_modo_eliminacion(btn_eliminar)
+        
+        btn_cerrar = ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))
+
         dlg_historial.title = ft.Text("Historial")
         dlg_historial.content = container_lista_historial
-        dlg_historial.actions = [btn_eliminar, ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))]
+        # SOLUCIÓN: Usamos un Row con espacio distribuido para que los textos largos de los botones no se encimen
+        dlg_historial.actions = [
+            ft.Row(
+                [btn_eliminar, btn_cerrar],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                width=280
+            )
+        ]
         abrir_modal(dlg_historial)
 
     in_dia = ft.TextField(label="Día (ej: 5)", width=90)
@@ -387,5 +397,5 @@ def main(page: ft.Page):
     page.add(vista_principal, vista_calendario)
     page.update()
 
-# --- EJECUCIÓN NATIVA PARA APK ---
 ft.app(target=main)
+        
