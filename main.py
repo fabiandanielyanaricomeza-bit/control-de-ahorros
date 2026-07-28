@@ -2,61 +2,44 @@ import flet as ft
 import csv
 import os
 from datetime import datetime
-import calendar
 
 archivo = 'mis_ahorros.csv'
 
 def main(page: ft.Page):
     # --- 1. CONFIGURACIÓN DE LA PANTALLA ---
     page.title = "Control de Ahorros"
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.SYSTEM
+    page.scroll = ft.ScrollMode.AUTO 
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.scroll = ft.ScrollMode.AUTO
 
     if not os.path.exists(archivo):
         with open(archivo, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(['Fecha', 'Monto', 'Descripción'])
 
-    def cerrar_modal(dialogo):
-        dialogo.open = False
-        page.update()
-
-    def abrir_modal(dialogo):
-        if dialogo not in page.overlay:
-            page.overlay.append(dialogo)
-        dialogo.open = True
-        page.update()
-
-    # --- 2. LÓGICA DE DATOS Y CACHÉ RÁPIDO ---
-    def leer_todas_las_transacciones():
-        """Lee el archivo CSV una sola vez para optimizar el rendimiento."""
-        transacciones = []
-        if os.path.exists(archivo):
-            with open(archivo, mode='r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                next(reader, None) # Saltar cabecera
-                for fila in reader:
-                    if len(fila) >= 2:
-                        transacciones.append(fila)
-        return transacciones
-
+    # --- 2. LÓGICA DE RESUMEN ---
     def obtener_resumen():
         ingresos = 0.0
         gastos = 0.0
-        for fila in leer_todas_las_transacciones():
-            try:
-                monto = float(fila[1])
-                if monto > 0: ingresos += monto
-                else: gastos += monto
-            except ValueError:
-                pass
+        if os.path.exists(archivo):
+            with open(archivo, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for fila in reader:
+                    if len(fila) >= 2:
+                        try:
+                            monto = float(fila[1])
+                            if monto > 0: ingresos += monto
+                            else: gastos += monto
+                        except ValueError:
+                            pass
         return ingresos, gastos, ingresos + gastos
 
     ingresos_val, gastos_val, beneficio_val = obtener_resumen()
 
-    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color="green")
-    txt_gastos = ft.Text(f"{gastos_val:.2f}", color="red")
+    # --- 3. ELEMENTOS VISUALES PRINCIPALES ---
+    txt_ingresos = ft.Text(f"{ingresos_val:.2f}", color="#4CAF50") 
+    txt_gastos = ft.Text(f"{gastos_val:.2f}", color="#F44336") 
     txt_beneficio = ft.Text(f"{beneficio_val:.2f}", weight="bold")
 
     tabla_resumen = ft.DataTable(
@@ -66,8 +49,8 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("Monto", weight="bold"), numeric=True),
         ],
         rows=[
-            ft.DataRow(cells=[ft.DataCell(ft.Text("Ingresos (+)", color="green")), ft.DataCell(txt_ingresos)]),
-            ft.DataRow(cells=[ft.DataCell(ft.Text("Gastos (-)", color="red")), ft.DataCell(txt_gastos)]),
+            ft.DataRow(cells=[ft.DataCell(ft.Text("Ingresos (+)", color="#4CAF50", weight="bold")), ft.DataCell(txt_ingresos)]),
+            ft.DataRow(cells=[ft.DataCell(ft.Text("Gastos (-)", color="#F44336", weight="bold")), ft.DataCell(txt_gastos)]),
             ft.DataRow(cells=[ft.DataCell(ft.Text("BENEFICIO", weight="bold")), ft.DataCell(txt_beneficio)]),
         ]
     )
@@ -79,213 +62,134 @@ def main(page: ft.Page):
         txt_beneficio.value = f"{b:.2f}"
         page.update()
 
-    # --- 3. BARRA SUPERIOR Y TEMA DINÁMICO ---
-    app_bar_title = ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD)
-    btn_accion_vista = ft.TextButton(">", on_click=lambda e: alternar_vista())
-
-    def actualizar_estilo_appbar():
-        if page.theme_mode == ft.ThemeMode.DARK:
-            app_bar.bgcolor = "#121212"
-            app_bar_title.color = "#90CAF9"
-            btn_accion_vista.style = ft.ButtonStyle(color="#90CAF9")
-        else:
-            app_bar.bgcolor = "#E8EAF6"
-            app_bar_title.color = "#1A237E"
-            btn_accion_vista.style = ft.ButtonStyle(color="#1A237E")
-
-    def cambiar_tema(e):
-        page.theme_mode = ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
-        actualizar_estilo_appbar()
+    def cerrar_modal(dialogo):
+        dialogo.open = False
         page.update()
 
-    dlg_info = ft.AlertDialog(
-        title=ft.Text("Acerca de", weight="bold"),
-        content=ft.Text("Control de Ahorros v2.1\nCreada por Fabián.\nEstudiante de Ingeniería.", text_align=ft.TextAlign.CENTER),
-        actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_info))]
-    )
-
-    # --- Lógica del Calendario Optimizada ---
-    fecha_hoy = datetime.now()
-    estado_calendario = {"mes": fecha_hoy.month, "anio": fecha_hoy.year}
-    
-    contenedor_calendario_grid = ft.Column(tight=True, alignment=ft.MainAxisAlignment.CENTER)
-    txt_anio = ft.Text(weight="bold", size=18)
-    txt_mes = ft.Text(weight="bold", size=18)
-
-    dlg_dia = ft.AlertDialog(content=ft.Column([], scroll=ft.ScrollMode.AUTO, height=150))
-    
-    def ver_registros_dia(dia, anio, mes, registros):
-        dlg_dia.title = ft.Text(f"Movimientos del {dia}/{mes}/{anio}", size=14, weight="bold")
-        lista_ui = ft.Column([], scroll=ft.ScrollMode.AUTO, height=150)
-        for fila in registros:
-            color_monto = "green" if float(fila[1]) > 0 else "red"
-            lista_ui.controls.append(ft.Text(f"• S/ {fila[1]} : {fila[2]}", color=color_monto))
-        
-        dlg_dia.content = lista_ui
-        dlg_dia.actions = [ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_dia))]
-        abrir_modal(dlg_dia)
-
-    def obtener_datos_mes(anio, mes):
-        dias_activos = {}
-        for fila in leer_todas_las_transacciones():
-            if len(fila) >= 3:
-                try:
-                    f_date = datetime.strptime(fila[0].split(" ")[0], "%Y-%m-%d")
-                    if f_date.year == anio and f_date.month == mes:
-                        if f_date.day not in dias_activos:
-                            dias_activos[f_date.day] = []
-                        dias_activos[f_date.day].append(fila)
-                except:
-                    pass
-        return dias_activos
-
-    def renderizar_calendario_pantalla():
-        anio, mes = estado_calendario["anio"], estado_calendario["mes"]
-        nombres_meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        
-        txt_anio.value = str(anio)
-        txt_mes.value = nombres_meses[mes]
-        
-        dias_activos = obtener_datos_mes(anio, mes)
-        cal = calendar.monthcalendar(anio, mes)
-        contenedor_calendario_grid.controls.clear()
-        
-        dias_semana = ["L", "M", "X", "J", "V", "S", "D"]
-        header_row = ft.Row([ft.Container(content=ft.Text(d, weight="bold", size=14), width=38, alignment=ft.Alignment(0, 0)) for d in dias_semana], alignment=ft.MainAxisAlignment.CENTER)
-        contenedor_calendario_grid.controls.append(header_row)
-        contenedor_calendario_grid.controls.append(ft.Container(height=10))
-
-        for semana in cal:
-            fila_semana = ft.Row(alignment=ft.MainAxisAlignment.CENTER)
-            for dia in semana:
-                if dia == 0:
-                    fila_semana.controls.append(ft.Container(width=38, height=38))
-                else:
-                    tiene_registro = dia in dias_activos
-                    bg_color = "indigo" if tiene_registro else "transparent"
-                    txt_color = "white" if tiene_registro else None
-                    
-                    btn_dia = ft.Container(
-                        content=ft.Text(str(dia), color=txt_color, size=13),
-                        width=38, height=38,
-                        alignment=ft.Alignment(0, 0),
-                        bgcolor=bg_color,
-                        border_radius=19,
-                        on_click=lambda e, d=dia: ver_registros_dia(d, anio, mes, dias_activos[d]) if d in dias_activos else None
-                    )
-                    fila_semana.controls.append(btn_dia)
-            contenedor_calendario_grid.controls.append(fila_semana)
+    def abrir_modal(dialogo):
+        dialogo.open = True
         page.update()
 
-    def cambiar_mes(delta):
-        estado_calendario["mes"] += delta
-        if estado_calendario["mes"] > 12:
-            estado_calendario["mes"] = 1
-            estado_calendario["anio"] += 1
-        elif estado_calendario["mes"] < 1:
-            estado_calendario["mes"] = 12
-            estado_calendario["anio"] -= 1
-        renderizar_calendario_pantalla()
-
-    # --- VISTAS PRINCIPALES ---
-    btn_agregar = ft.Button("AGREGAR", width=260, height=60, icon="add_circle", on_click=lambda e: abrir_agregar(e))
-    btn_buscar = ft.Button("Buscar", width=125, height=45, icon="search", on_click=lambda e: abrir_buscar(e))
-    btn_historial = ft.Button("Historial", width=125, height=45, icon="history", on_click=lambda e: abrir_historial(e))
-
-    vista_principal = ft.Container(
-        content=ft.Column(
-            controls=[
-                ft.Container(height=10),
-                tabla_resumen,
-                ft.Container(height=30),
-                btn_agregar,
-                ft.Container(height=10),
-                ft.Row([btn_buscar, btn_historial], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
-        ),
-        width=380,
-        alignment=ft.Alignment(0, 0)
-    )
-
-    vista_calendario = ft.Container(
-        content=ft.Column(
-            controls=[
-                ft.Container(height=10),
-                ft.Row([
-                    txt_anio,
-                    txt_mes
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, width=320),
-                ft.Container(height=15),
-                contenedor_calendario_grid,
-                ft.Container(height=20),
-                ft.Row([
-                    ft.Button("Mes Anterior", icon="chevron_left", on_click=lambda e: cambiar_mes(-1)),
-                    ft.Button("Mes Siguiente", icon="chevron_right", on_click=lambda e: cambiar_mes(1))
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
-        ),
-        width=380,
-        alignment=ft.Alignment(0, 0),
-        visible=False
-    )
-
-    en_calendario = [False]
-
-    def alternar_vista():
-        if not en_calendario[0]:
-            en_calendario[0] = True
-            app_bar_title.value = "CALENDARIO"
-            btn_accion_vista.text = "X"
-            vista_principal.visible = False
-            vista_calendario.visible = True
-            renderizar_calendario_pantalla()
-        else:
-            en_calendario[0] = False
-            app_bar_title.value = "MI BILLETERA"
-            btn_accion_vista.text = ">"
-            vista_calendario.visible = False
-            vista_principal.visible = True
-            actualizar_pantalla()
-        actualizar_estilo_appbar()
-        page.update()
-
-    app_bar = ft.AppBar(
-        leading=ft.PopupMenuButton(
-            items=[
-                ft.PopupMenuItem(content=ft.Text("Cambiar Tema"), icon="brightness_6", on_click=cambiar_tema),
-                ft.PopupMenuItem(content=ft.Text("Info de la App"), icon="info", on_click=lambda e: abrir_modal(dlg_info))
-            ]
-        ),
-        title=app_bar_title,
-        center_title=True,
-        actions=[btn_accion_vista]
-    )
-    
-    actualizar_estilo_appbar()
-    page.appbar = app_bar
-
-    # --- MODALES ---
+    # --- 4. MODALES PRINCIPALES ---
     dlg_agregar = ft.AlertDialog(content=ft.Container())
     dlg_historial = ft.AlertDialog(content=ft.Container())
     dlg_confirmar = ft.AlertDialog(content=ft.Container())
     dlg_buscar = ft.AlertDialog(content=ft.Container())
+    dlg_guardar = ft.AlertDialog(content=ft.Container())
+    dlg_cargar = ft.AlertDialog(content=ft.Container())
+    
+    page.overlay.extend([dlg_agregar, dlg_historial, dlg_confirmar, dlg_buscar, dlg_guardar, dlg_cargar])
 
-    input_monto = ft.TextField(label="Monto (+ o -)", prefix_icon="attach_money")
-    input_desc = ft.TextField(label="Descripción", prefix_icon="description")
+    # --- 5. LÓGICA DE CARGA Y DESCARGA (SIN ERRORES ASÍNCRONOS) ---
+    def mostrar_alerta_mantenimiento(mensaje):
+        page.overlay.append(ft.SnackBar(ft.Text(mensaje), open=True))
+        page.update()
+
+    def abrir_guardar(e):
+        contenido = ""
+        if os.path.exists(archivo):
+            with open(archivo, mode='r', encoding='utf-8') as f:
+                contenido = f.read()
+        
+        txt_respaldo = ft.TextField(
+            value=contenido, multiline=True, read_only=True, min_lines=3, max_lines=6, label="Texto de respaldo"
+        )
+        
+        # Botón visual que muestra alerta temporalmente para evitar crashes y warnings
+        btn_descargar = ft.ElevatedButton(
+            "Descarga", 
+            icon="download", 
+            on_click=lambda ev: mostrar_alerta_mantenimiento("Descarga directa temporalmente desactivada. Por favor, copia el texto."),
+            bgcolor="#1A237E", color="#FFFFFF"
+        )
+
+        dlg_guardar.title = ft.Text("Guardar Datos", color="#1A237E", weight="bold")
+        dlg_guardar.content = ft.Column([
+            btn_descargar,
+            ft.Divider(),
+            ft.Text("O copia manualmente el texto:", size=12),
+            txt_respaldo
+        ], tight=True, spacing=10)
+        
+        dlg_guardar.actions = [
+            ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_guardar))
+        ]
+        abrir_modal(dlg_guardar)
+
+    def procesar_carga_texto(e, txt_input):
+        texto = txt_input.value.strip()
+        if texto:
+            try:
+                with open(archivo, mode='w', encoding='utf-8') as f:
+                    f.write(texto)
+                actualizar_pantalla()
+                cerrar_modal(dlg_cargar)
+                page.overlay.append(ft.SnackBar(ft.Text("¡Datos cargados con éxito!"), open=True))
+                page.update()
+            except Exception as ex:
+                page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar datos: {ex}"), open=True))
+                page.update()
+
+    def abrir_cargar(e):
+        txt_input = ft.TextField(
+            multiline=True, min_lines=3, max_lines=6, hint_text="Pega el texto aquí..."
+        )
+        
+        # Botón visual temporalmente desactivado para evitar la mancha de FilePicker
+        btn_buscar_archivo = ft.ElevatedButton(
+            "Buscar", 
+            icon="folder_open", 
+            on_click=lambda ev: mostrar_alerta_mantenimiento("Búsqueda de archivos desactivada. Pega el texto abajo."),
+            bgcolor="#1A237E", color="#FFFFFF"
+        )
+
+        dlg_cargar.title = ft.Text("Cargar Datos", color="#1A237E", weight="bold")
+        dlg_cargar.content = ft.Column([
+            btn_buscar_archivo,
+            ft.Divider(),
+            ft.Text("O pega el texto de tu respaldo:", size=12),
+            txt_input
+        ], tight=True, spacing=10)
+        
+        dlg_cargar.actions = [
+            ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_cargar)),
+            ft.ElevatedButton("Cargar Texto", on_click=lambda ev: procesar_carga_texto(ev, txt_input), bgcolor="#1A237E", color="#FFFFFF")
+        ]
+        abrir_modal(dlg_cargar)
+
+    # --- 6. BARRA SUPERIOR (CON MENÚ DE GUARDAR/CARGAR) ---
+    page.appbar = ft.AppBar(
+        leading=ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(content=ft.Text("Guardar"), icon="save", on_click=abrir_guardar),
+                ft.PopupMenuItem(content=ft.Text("Cargar"), icon="file_upload", on_click=abrir_cargar)
+            ]
+        ),
+        title=ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD, color="#1A237E"),
+        center_title=True,
+        bgcolor="#E8EAF6"
+    )
+
+    # --- 7. LÓGICA MODAL AGREGAR ---
+    input_monto = ft.TextField(label="Monto (+ o -)")
+    input_desc = ft.TextField(label="Descripción")
 
     def guardar_transaccion(e):
         try:
+            if not input_monto.value:
+                raise ValueError("Vacío")
             monto = float(input_monto.value)
             desc = input_desc.value.strip() if input_desc.value else "Sin descripción"
+
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M")
             with open(archivo, mode='a', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
                 writer.writerow([fecha_actual, monto, desc])
+
             cerrar_modal(dlg_agregar)
             actualizar_pantalla()
-            page.overlay.append(ft.SnackBar(ft.Text("¡Guardado!"), open=True))
+
+            page.overlay.append(ft.SnackBar(ft.Text("¡Guardado exitosamente!"), open=True))
             page.update()
         except ValueError:
             page.overlay.append(ft.SnackBar(ft.Text("Error: Ingresa un número válido."), open=True))
@@ -298,77 +202,125 @@ def main(page: ft.Page):
         dlg_agregar.content = ft.Column([input_monto, input_desc], tight=True)
         dlg_agregar.actions = [
             ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_agregar)),
-            ft.Button("Guardar", on_click=guardar_transaccion)
+            ft.ElevatedButton("Guardar", on_click=guardar_transaccion, bgcolor="#1A237E", color="#FFFFFF")
         ]
         abrir_modal(dlg_agregar)
 
+    # --- 8. LÓGICA MODAL HISTORIAL CON ELIMINACIÓN ---
     container_lista_historial = ft.Column([], scroll=ft.ScrollMode.AUTO, height=220)
     items_historial = []
     modo_borrar = [False]
 
     def ejecutar_eliminacion_final(ev, filas_a_borrar):
         filas_conservadas = []
-        for fila in leer_todas_las_transacciones():
-            if fila not in filas_a_borrar:
-                filas_conservadas.append(fila)
+        if os.path.exists(archivo):
+            with open(archivo, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                cabecera = next(reader, None)
+                if cabecera:
+                    filas_conservadas.append(cabecera)
+                for fila in reader:
+                    if fila not in filas_a_borrar:
+                        filas_conservadas.append(fila)
+
         with open(archivo, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Fecha', 'Monto', 'Descripción'])
             writer.writerows(filas_conservadas)
+
         cerrar_modal(dlg_confirmar)
         cerrar_modal(dlg_historial)
         actualizar_pantalla()
 
+        page.overlay.append(ft.SnackBar(ft.Text("Registros eliminados correctamente."), open=True))
+        page.update()
+
     def abrir_confirmacion_borrado(filas_a_borrar):
-        detalles_column = ft.Column([ft.Text(f"• {f[1]} ({f[0]})", size=12) for f in filas_a_borrar], scroll=ft.ScrollMode.AUTO, height=100)
-        dlg_confirmar.title = ft.Text("¿Estás seguro?", color="red")
-        dlg_confirmar.content = ft.Column([ft.Text("Se eliminarán:"), detalles_column], tight=True)
+        detalles_column = ft.Column([], scroll=ft.ScrollMode.AUTO, height=150)
+        for f in filas_a_borrar:
+            detalles_column.controls.append(ft.Text(f"• [{f[1]}] {f[2]} ({f[0]})", size=12))
+
+        dlg_confirmar.title = ft.Text("¿Estás seguro?", color="#F44336", weight="bold")
+        dlg_confirmar.content = ft.Column([
+            ft.Text("Se eliminarán permanentemente los siguientes elementos:"),
+            ft.Divider(),
+            detalles_column
+        ], tight=True, width=300)
         dlg_confirmar.actions = [
             ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_confirmar)),
-            ft.Button("Eliminar", on_click=lambda ev: ejecutar_eliminacion_final(ev, filas_a_borrar), color="white", bgcolor="red")
+            ft.ElevatedButton("Sí, Eliminar", on_click=lambda ev: ejecutar_eliminacion_final(ev, filas_a_borrar), bgcolor="#F44336", color="#FFFFFF")
         ]
         abrir_modal(dlg_confirmar)
 
-    def alternar_modo_eliminacion(btn_eliminar):
+    def alternar_modo_eliminacion(btn_activar_eliminar):
         if not modo_borrar[0]:
             modo_borrar[0] = True
-            for chk, _ in items_historial: chk.visible = True
-            btn_eliminar.text = "Confirmar Borrado"
-            # CAMBIO: Usamos TextButton o un estilo sin fondo rojo sólido para que no se vea mal
-            btn_eliminar.style = ft.ButtonStyle(color="red")
+            for chk, _ in items_historial:
+                chk.visible = True
+            btn_activar_eliminar.text = "Confirmar Borrado"
+            btn_activar_eliminar.bgcolor = "#F44336"
+            btn_activar_eliminar.color = "#FFFFFF"
         else:
             seleccionados = [fila for chk, fila in items_historial if chk.value]
-            if seleccionados: abrir_confirmacion_borrado(seleccionados)
+            if not seleccionados:
+                page.overlay.append(ft.SnackBar(ft.Text("No seleccionaste ningún registro."), open=True))
+                page.update()
+                return
+            abrir_confirmacion_borrado(seleccionados)
         page.update()
+
+    def cargar_filas_historial():
+        container_lista_historial.controls.clear()
+        items_historial.clear()
+
+        if os.path.exists(archivo):
+            with open(archivo, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for fila in reader:
+                    if len(fila) >= 3:
+                        chk = ft.Checkbox(visible=False)
+                        items_historial.append((chk, fila))
+
+                        fila_ui = ft.Row([
+                            chk,
+                            ft.Text(fila[0], size=10, width=105),
+                            ft.Text(fila[1], size=11, width=55, weight="bold"),
+                            ft.Text(fila[2], size=11, width=120, overflow=ft.TextOverflow.ELLIPSIS)
+                        ], spacing=5)
+                        container_lista_historial.controls.append(fila_ui)
+
+        if not items_historial:
+            container_lista_historial.controls.append(ft.Text("Sin registros en el historial.", color="#9E9E9E"))
 
     def abrir_historial(e):
         modo_borrar[0] = False
-        container_lista_historial.controls.clear()
-        items_historial.clear()
-        
-        for fila in leer_todas_las_transacciones():
-            chk = ft.Checkbox(visible=False)
-            items_historial.append((chk, fila))
-            container_lista_historial.controls.append(
-                ft.Row([chk, ft.Text(fila[0], size=10, width=105), ft.Text(fila[1], size=11, width=55, weight="bold"), ft.Text(fila[2], size=11, width=120)], spacing=5)
-            )
-                    
-        btn_eliminar = ft.TextButton("Eliminar", style=ft.ButtonStyle(color="red"))
-        btn_eliminar.on_click = lambda ev: alternar_modo_eliminacion(btn_eliminar)
-        
-        btn_cerrar = ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))
+        cargar_filas_historial()
 
-        dlg_historial.title = ft.Text("Historial")
-        dlg_historial.content = container_lista_historial
+        btn_activar_eliminar = ft.ElevatedButton("Eliminar", bgcolor="#FFCDD2", color="#B71C1C")
+        btn_activar_eliminar.on_click = lambda ev: alternar_modo_eliminacion(btn_activar_eliminar)
+
+        dlg_historial.title = ft.Text("Historial Completo")
+        dlg_historial.content = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Fecha", weight="bold", size=11, width=105),
+                    ft.Text("Monto", weight="bold", size=11, width=55),
+                    ft.Text("Detalle", weight="bold", size=11, width=110),
+                ]),
+                ft.Divider(height=5),
+                container_lista_historial
+            ]),
+            height=320,
+            width=335
+        )
         dlg_historial.actions = [
-            ft.Row(
-                [btn_eliminar, btn_cerrar],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                width=280
-            )
+            btn_activar_eliminar,
+            ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_historial))
         ]
+        dlg_historial.actions_alignment = ft.MainAxisAlignment.SPACE_BETWEEN
         abrir_modal(dlg_historial)
 
+    # --- 9. LÓGICA MODAL BUSCAR POR FECHA ---
     in_dia = ft.TextField(label="Día (ej: 5)", width=90)
     in_mes = ft.TextField(label="Mes (ej: 8)", width=90)
     in_anio = ft.TextField(label="Año (ej: 2026)", width=120)
@@ -376,26 +328,122 @@ def main(page: ft.Page):
 
     def ejecutar_busqueda(ev):
         resultados_column.controls.clear()
-        d = in_dia.value.strip().zfill(2) if in_dia.value else ""
-        m = in_mes.value.strip().zfill(2) if in_mes.value else ""
-        a = in_anio.value.strip()
-        fecha_busqueda = "-".join(filter(None, [a, m, d]))
-        
-        for fila in leer_todas_las_transacciones():
-            if fecha_busqueda in fila[0]:
-                resultados_column.controls.append(ft.Text(f"• [{fila[1]}] {fila[2]} ({fila[0]})"))
+
+        d_val = in_dia.value.strip() if in_dia.value else ""
+        m_val = in_mes.value.strip() if in_mes.value else ""
+        a_val = in_anio.value.strip() if in_anio.value else ""
+
+        if not d_val and not m_val and not a_val:
+            resultados_column.controls.append(ft.Text("Ingresa al menos un dato.", color="#F44336"))
+            page.update()
+            return
+
+        d = d_val.zfill(2) if d_val else ""
+        m = m_val.zfill(2) if m_val else ""
+        a = a_val
+
+        partes = []
+        if a: partes.append(a)
+        if m: partes.append(m)
+        if d: partes.append(d)
+        fecha_busqueda = "-".join(partes)
+
+        encontrados = 0
+        if os.path.exists(archivo):
+            with open(archivo, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for fila in reader:
+                    if len(fila) >= 3 and fecha_busqueda in fila[0]:
+                        resultados_column.controls.append(
+                            ft.Text(f"• [{fila[1]}] {fila[2]} ({fila[0]})")
+                        )
+                        encontrados += 1
+
+        if encontrados == 0:
+            resultados_column.controls.append(ft.Text("No se encontraron registros.", color="#F44336"))
         page.update()
 
     def abrir_buscar(e):
-        in_dia.value = in_mes.value = in_anio.value = ""
+        in_dia.value = ""
+        in_mes.value = ""
+        in_anio.value = ""
         resultados_column.controls.clear()
-        dlg_buscar.title = ft.Text("Buscar")
-        dlg_buscar.content = ft.Column([ft.Row([in_dia, in_mes]), in_anio, ft.Button("Buscar", on_click=ejecutar_busqueda), resultados_column], tight=True)
+
+        dlg_buscar.title = ft.Text("Buscar por Fecha")
+        dlg_buscar.content = ft.Column([
+            ft.Row([in_dia, in_mes], spacing=10),
+            in_anio,
+            ft.ElevatedButton("Buscar", on_click=ejecutar_busqueda, bgcolor="#1A237E", color="#FFFFFF"),
+            ft.Divider(),
+            resultados_column
+        ], tight=True, height=350)
         dlg_buscar.actions = [ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_buscar))]
         abrir_modal(dlg_buscar)
 
-    page.add(vista_principal, vista_calendario)
+    # --- 10. BOTONES EN PANTALLA ---
+    btn_agregar = ft.ElevatedButton(
+        "AGREGAR",
+        width=260, height=65,
+        style=ft.ButtonStyle(
+            bgcolor="#1A237E", 
+            color="#FFFFFF",
+            shape=ft.RoundedRectangleBorder(radius=15)
+        ),
+        on_click=abrir_agregar
+    )
+
+    btn_buscar = ft.ElevatedButton(
+        "BUSCAR",
+        width=125, height=45,
+        style=ft.ButtonStyle(
+            bgcolor="#C5CAE9", 
+            color="#1A237E",
+            shape=ft.RoundedRectangleBorder(radius=10)
+        ),
+        on_click=abrir_buscar
+    )
+
+    btn_historial = ft.ElevatedButton(
+        "HISTORIAL",
+        width=125, height=45,
+        style=ft.ButtonStyle(
+            bgcolor="#C5CAE9", 
+            color="#1A237E",
+            shape=ft.RoundedRectangleBorder(radius=10)
+        ),
+        on_click=abrir_historial
+    )
+
+    fila_botones_chiquitos = ft.Row(
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=20,
+        controls=[btn_buscar, btn_historial]
+    )
+
+    # --- 11. CONTENEDOR MODO CELULAR ---
+    contenedor_celular = ft.Container(
+        content=ft.Column(
+            controls=[
+                ft.Container(height=20),
+                tabla_resumen,
+                ft.Container(height=50),
+                btn_agregar,
+                ft.Container(height=15),
+                fila_botones_chiquitos,
+                ft.Container(height=20)
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER
+        ),
+        width=380,
+        padding=10
+    )
+
+    page.add(contenedor_celular)
     page.update()
 
-ft.app(target=main)
-    
+try:
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+except Exception:
+    ft.app(target=main)
