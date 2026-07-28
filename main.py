@@ -1,6 +1,7 @@
 import flet as ft
 import csv
 import os
+import shutil
 from datetime import datetime
 import calendar
 
@@ -30,12 +31,11 @@ def main(page: ft.Page):
 
     # --- 2. LÓGICA DE DATOS Y CACHÉ RÁPIDO ---
     def leer_todas_las_transacciones():
-        """Lee el archivo CSV una sola vez para optimizar el rendimiento."""
         transacciones = []
         if os.path.exists(archivo):
             with open(archivo, mode='r', encoding='utf-8') as f:
                 reader = csv.reader(f)
-                next(reader, None) # Saltar cabecera
+                next(reader, None)
                 for fila in reader:
                     if len(fila) >= 2:
                         transacciones.append(fila)
@@ -79,7 +79,40 @@ def main(page: ft.Page):
         txt_beneficio.value = f"{b:.2f}"
         page.update()
 
-    # --- 3. BARRA SUPERIOR Y TEMA DINÁMICO ---
+    # --- 3. MANEJO NATIVO DE ARCHIVOS (FILEPICKER) ---
+    def guardar_archivo_resultado(e: ft.FilePickerResultEvent):
+        # e.path contiene la ruta donde el usuario decidió guardar el archivo
+        if e.path:
+            try:
+                shutil.copy(archivo, e.path)
+                page.overlay.append(ft.SnackBar(ft.Text(f"Copia guardada exitosamente."), open=True))
+                page.update()
+            except Exception as ex:
+                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar: {ex}"), open=True))
+                page.update()
+
+    def cargar_archivo_resultado(e: ft.FilePickerResultEvent):
+        # e.files contiene los archivos seleccionados por el usuario
+        if e.files and len(e.files) > 0:
+            ruta_seleccionada = e.files[0].path
+            if ruta_seleccionada:
+                try:
+                    shutil.copy(ruta_seleccionada, archivo)
+                    actualizar_pantalla()
+                    if en_calendario[0]:
+                        renderizar_calendario_pantalla()
+                    page.overlay.append(ft.SnackBar(ft.Text("¡Datos restaurados con éxito!"), open=True))
+                    page.update()
+                except Exception as ex:
+                    page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar: {ex}"), open=True))
+                    page.update()
+
+    # Instanciamos los exploradores de archivos y los añadimos a la pantalla
+    picker_guardar = ft.FilePicker(on_result=guardar_archivo_resultado)
+    picker_cargar = ft.FilePicker(on_result=cargar_archivo_resultado)
+    page.overlay.extend([picker_guardar, picker_cargar])
+
+    # --- 4. BARRA SUPERIOR Y TEMA DINÁMICO ---
     app_bar_title = ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD)
     btn_accion_vista = ft.TextButton(">", on_click=lambda e: alternar_vista())
 
@@ -100,11 +133,43 @@ def main(page: ft.Page):
 
     dlg_info = ft.AlertDialog(
         title=ft.Text("Acerca de", weight="bold"),
-        content=ft.Text("Control de Ahorros v2.1\nCreada por Fabián.\nEstudiante de Ingeniería.", text_align=ft.TextAlign.CENTER),
+        content=ft.Text("Control de Ahorros v2.2\nCreada por Fabián.\nEstudiante de Ingeniería.", text_align=ft.TextAlign.CENTER),
         actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_info))]
     )
 
-    # --- Lógica del Calendario Optimizada ---
+    app_bar = ft.AppBar(
+        leading=ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(
+                    content=ft.Text("Guardar CSV"), 
+                    icon="save", 
+                    on_click=lambda _: picker_guardar.save_file(
+                        dialog_title="Guardar respaldo de ahorros", 
+                        file_name="mis_ahorros_respaldo.csv", 
+                        allowed_extensions=["csv"]
+                    )
+                ),
+                ft.PopupMenuItem(
+                    content=ft.Text("Cargar CSV"), 
+                    icon="file_upload", 
+                    on_click=lambda _: picker_cargar.pick_files(
+                        dialog_title="Seleccionar respaldo de ahorros", 
+                        allowed_extensions=["csv"]
+                    )
+                ),
+                ft.PopupMenuItem(content=ft.Text("Cambiar Tema"), icon="brightness_6", on_click=cambiar_tema),
+                ft.PopupMenuItem(content=ft.Text("Info de la App"), icon="info", on_click=lambda e: abrir_modal(dlg_info))
+            ]
+        ),
+        title=app_bar_title,
+        center_title=True,
+        actions=[btn_accion_vista]
+    )
+    
+    actualizar_estilo_appbar()
+    page.appbar = app_bar
+
+    # --- 5. LÓGICA DEL CALENDARIO ---
     fecha_hoy = datetime.now()
     estado_calendario = {"mes": fecha_hoy.month, "anio": fecha_hoy.year}
     
@@ -187,7 +252,7 @@ def main(page: ft.Page):
             estado_calendario["anio"] -= 1
         renderizar_calendario_pantalla()
 
-    # --- VISTAS PRINCIPALES ---
+    # --- 6. VISTAS PRINCIPALES ---
     btn_agregar = ft.Button("AGREGAR", width=260, height=60, icon="add_circle", on_click=lambda e: abrir_agregar(e))
     btn_buscar = ft.Button("Buscar", width=125, height=45, icon="search", on_click=lambda e: abrir_buscar(e))
     btn_historial = ft.Button("Historial", width=125, height=45, icon="history", on_click=lambda e: abrir_historial(e))
@@ -251,102 +316,7 @@ def main(page: ft.Page):
         actualizar_estilo_appbar()
         page.update()
 
-    # --- MODALES DE GUARDAR Y CARGAR ---
-    dlg_guardar = ft.AlertDialog(content=ft.Container())
-    dlg_cargar = ft.AlertDialog(content=ft.Container())
-
-    def mostrar_alerta_mantenimiento(mensaje):
-        page.overlay.append(ft.SnackBar(ft.Text(mensaje), open=True))
-        page.update()
-
-    def abrir_guardar(e):
-        contenido = ""
-        if os.path.exists(archivo):
-            with open(archivo, mode='r', encoding='utf-8') as f:
-                contenido = f.read()
-        
-        txt_respaldo = ft.TextField(
-            value=contenido, multiline=True, read_only=True, min_lines=3, max_lines=6, label="Texto de respaldo"
-        )
-        
-        btn_descargar = ft.Button(
-            "Descargar (Mantenimiento)", 
-            icon="download", 
-            on_click=lambda ev: mostrar_alerta_mantenimiento("Descarga directa temporalmente desactivada. Por favor, copia el texto abajo.")
-        )
-
-        dlg_guardar.title = ft.Text("Guardar Datos", weight="bold")
-        dlg_guardar.content = ft.Column([
-            btn_descargar,
-            ft.Divider(),
-            ft.Text("O copia manualmente el texto:", size=12),
-            txt_respaldo
-        ], tight=True, spacing=10)
-        
-        dlg_guardar.actions = [
-            ft.TextButton("Cerrar", on_click=lambda ev: cerrar_modal(dlg_guardar))
-        ]
-        abrir_modal(dlg_guardar)
-
-    def procesar_carga_texto(e, txt_input):
-        texto = txt_input.value.strip()
-        if texto:
-            try:
-                with open(archivo, mode='w', encoding='utf-8') as f:
-                    f.write(texto)
-                actualizar_pantalla()
-                if en_calendario[0]:
-                    renderizar_calendario_pantalla()
-                cerrar_modal(dlg_cargar)
-                page.overlay.append(ft.SnackBar(ft.Text("¡Datos cargados con éxito!"), open=True))
-                page.update()
-            except Exception as ex:
-                page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar datos: {ex}"), open=True))
-                page.update()
-
-    def abrir_cargar(e):
-        txt_input = ft.TextField(
-            multiline=True, min_lines=3, max_lines=6, hint_text="Pega el texto aquí..."
-        )
-        
-        btn_buscar_archivo = ft.Button(
-            "Buscar (Mantenimiento)", 
-            icon="folder_open", 
-            on_click=lambda ev: mostrar_alerta_mantenimiento("Búsqueda de archivos desactivada. Pega el texto abajo.")
-        )
-
-        dlg_cargar.title = ft.Text("Cargar Datos", weight="bold")
-        dlg_cargar.content = ft.Column([
-            btn_buscar_archivo,
-            ft.Divider(),
-            ft.Text("O pega el texto de tu respaldo:", size=12),
-            txt_input
-        ], tight=True, spacing=10)
-        
-        dlg_cargar.actions = [
-            ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_cargar)),
-            ft.Button("Cargar Texto", on_click=lambda ev: procesar_carga_texto(ev, txt_input))
-        ]
-        abrir_modal(dlg_cargar)
-
-    app_bar = ft.AppBar(
-        leading=ft.PopupMenuButton(
-            items=[
-                ft.PopupMenuItem(content=ft.Text("Guardar"), icon="save", on_click=abrir_guardar),
-                ft.PopupMenuItem(content=ft.Text("Cargar"), icon="file_upload", on_click=abrir_cargar),
-                ft.PopupMenuItem(content=ft.Text("Cambiar Tema"), icon="brightness_6", on_click=cambiar_tema),
-                ft.PopupMenuItem(content=ft.Text("Info de la App"), icon="info", on_click=lambda e: abrir_modal(dlg_info))
-            ]
-        ),
-        title=app_bar_title,
-        center_title=True,
-        actions=[btn_accion_vista]
-    )
-    
-    actualizar_estilo_appbar()
-    page.appbar = app_bar
-
-    # --- MODALES ---
+    # --- 7. MODALES SECUNDARIOS ---
     dlg_agregar = ft.AlertDialog(content=ft.Container())
     dlg_historial = ft.AlertDialog(content=ft.Container())
     dlg_confirmar = ft.AlertDialog(content=ft.Container())
