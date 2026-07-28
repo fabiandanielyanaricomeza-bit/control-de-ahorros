@@ -79,22 +79,20 @@ def main(page: ft.Page):
         txt_beneficio.value = f"{b:.2f}"
         page.update()
 
-    # --- 3. MANEJO NATIVO DE ARCHIVOS (MODIFICADO PARA ANDROID Y FLET ESTRICTO) ---
+    # --- 3. MANEJO NATIVO DE ARCHIVOS (MODIFICADO PARA EVITAR PANTALLA ROJA) ---
     def guardar_archivo_resultado(e: ft.FilePickerResultEvent):
         # En Android, e.path nos dará la CARPETA que eligió el usuario.
         if e.path:
             try:
-                # Creamos la ruta final uniendo la carpeta elegida y el nombre del archivo
                 ruta_destino = os.path.join(e.path, "mis_ahorros_respaldo.csv")
                 shutil.copy(archivo, ruta_destino)
                 page.overlay.append(ft.SnackBar(ft.Text(f"Guardado en: {ruta_destino}"), open=True))
                 page.update()
             except Exception as ex:
-                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar (elige otra carpeta como Documentos): {ex}"), open=True))
+                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar: {ex}"), open=True))
                 page.update()
 
     def cargar_archivo_resultado(e: ft.FilePickerResultEvent):
-        # Al cargar, e.files contiene el archivo exacto que tocaste
         if e.files and len(e.files) > 0:
             ruta_seleccionada = e.files[0].path
             if ruta_seleccionada:
@@ -109,14 +107,15 @@ def main(page: ft.Page):
                     page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar: {ex}"), open=True))
                     page.update()
 
-    # CORRECCIÓN AQUÍ: Instanciamos los exploradores vacíos y asignamos el evento después
+    # Instanciamos de forma segura para que el compilador del APK los reconozca
     picker_guardar = ft.FilePicker()
     picker_guardar.on_result = guardar_archivo_resultado
+    page.overlay.append(picker_guardar)
 
     picker_cargar = ft.FilePicker()
     picker_cargar.on_result = cargar_archivo_resultado
+    page.overlay.append(picker_cargar)
 
-    page.overlay.extend([picker_guardar, picker_cargar])
 
     # --- 4. BARRA SUPERIOR Y TEMA DINÁMICO ---
     app_bar_title = ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD)
@@ -139,7 +138,7 @@ def main(page: ft.Page):
 
     dlg_info = ft.AlertDialog(
         title=ft.Text("Acerca de", weight="bold"),
-        content=ft.Text("Control de Ahorros v2.2\nCreada por Fabián.\nEstudiante de Ingeniería.", text_align=ft.TextAlign.CENTER),
+        content=ft.Text("Control de Ahorros v2.2\nEstudiante de Ingeniería.", text_align=ft.TextAlign.CENTER),
         actions=[ft.TextButton("Cerrar", on_click=lambda e: cerrar_modal(dlg_info))]
     )
 
@@ -147,17 +146,17 @@ def main(page: ft.Page):
         leading=ft.PopupMenuButton(
             items=[
                 ft.PopupMenuItem(
-                    content=ft.Text("Guardar CSV"), 
+                    content=ft.Text("Guardar"), 
                     icon="save", 
                     on_click=lambda _: picker_guardar.get_directory_path(
                         dialog_title="Elige una carpeta (Ej: Documentos o Descargas)"
                     )
                 ),
                 ft.PopupMenuItem(
-                    content=ft.Text("Cargar CSV"), 
+                    content=ft.Text("Cargar"), 
                     icon="file_upload", 
                     on_click=lambda _: picker_cargar.pick_files(
-                        dialog_title="Busca tu archivo mis_ahorros_respaldo.csv", 
+                        dialog_title="Busca tu archivo CSV", 
                         allowed_extensions=["csv"]
                     )
                 ),
