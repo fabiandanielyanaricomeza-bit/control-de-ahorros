@@ -79,20 +79,22 @@ def main(page: ft.Page):
         txt_beneficio.value = f"{b:.2f}"
         page.update()
 
-    # --- 3. MANEJO NATIVO DE ARCHIVOS (FILEPICKER) ---
+    # --- 3. MANEJO NATIVO DE ARCHIVOS (MODIFICADO PARA ANDROID) ---
     def guardar_archivo_resultado(e: ft.FilePickerResultEvent):
-        # e.path contiene la ruta donde el usuario decidió guardar el archivo
+        # En Android, e.path nos dará la CARPETA que eligió el usuario.
         if e.path:
             try:
-                shutil.copy(archivo, e.path)
-                page.overlay.append(ft.SnackBar(ft.Text(f"Copia guardada exitosamente."), open=True))
+                # Creamos la ruta final uniendo la carpeta elegida y el nombre del archivo
+                ruta_destino = os.path.join(e.path, "mis_ahorros_respaldo.csv")
+                shutil.copy(archivo, ruta_destino)
+                page.overlay.append(ft.SnackBar(ft.Text(f"Guardado en: {ruta_destino}"), open=True))
                 page.update()
             except Exception as ex:
-                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar: {ex}"), open=True))
+                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar (elige otra carpeta como Documentos): {ex}"), open=True))
                 page.update()
 
     def cargar_archivo_resultado(e: ft.FilePickerResultEvent):
-        # e.files contiene los archivos seleccionados por el usuario
+        # Al cargar, e.files contiene el archivo exacto que tocaste
         if e.files and len(e.files) > 0:
             ruta_seleccionada = e.files[0].path
             if ruta_seleccionada:
@@ -107,7 +109,7 @@ def main(page: ft.Page):
                     page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar: {ex}"), open=True))
                     page.update()
 
-    # Instanciamos los exploradores de archivos y los añadimos a la pantalla
+    # Instanciamos los exploradores
     picker_guardar = ft.FilePicker(on_result=guardar_archivo_resultado)
     picker_cargar = ft.FilePicker(on_result=cargar_archivo_resultado)
     page.overlay.extend([picker_guardar, picker_cargar])
@@ -143,17 +145,17 @@ def main(page: ft.Page):
                 ft.PopupMenuItem(
                     content=ft.Text("Guardar CSV"), 
                     icon="save", 
-                    on_click=lambda _: picker_guardar.save_file(
-                        dialog_title="Guardar respaldo de ahorros", 
-                        file_name="mis_ahorros_respaldo.csv", 
-                        allowed_extensions=["csv"]
+                    # CAMBIO CLAVE: Usamos get_directory_path en lugar de save_file para que funcione en Android
+                    on_click=lambda _: picker_guardar.get_directory_path(
+                        dialog_title="Elige una carpeta (Ej: Documentos o Descargas)"
                     )
                 ),
                 ft.PopupMenuItem(
                     content=ft.Text("Cargar CSV"), 
                     icon="file_upload", 
+                    # Funciona bien en Android para seleccionar un archivo
                     on_click=lambda _: picker_cargar.pick_files(
-                        dialog_title="Seleccionar respaldo de ahorros", 
+                        dialog_title="Busca tu archivo mis_ahorros_respaldo.csv", 
                         allowed_extensions=["csv"]
                     )
                 ),
