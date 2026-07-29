@@ -17,6 +17,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Check Python Syntax (EL DETECTIVE)
+        run: |
+          echo "Buscando errores de sintaxis en el código Python..."
+          python -m compileall -q .
+        # Si hay un error tipográfico o de código en tu app, 
+        # GitHub Actions se detendrá aquí y te mostrará la línea exacta.
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -42,11 +49,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet
 
-      - name: Clean build environment (Fix compileall issue)
-        run: |
-          # Borra carpetas que hacen fallar a Flet al intentar compilarlas
-          rm -rf .venv venv env .env .git .github
-          echo "flet" > requirements.txt
+      - name: Clean build environment
+        run: rm -rf .venv venv env .env .git .github
 
       - name: Build APK with Flet
         run: flet build apk --python-version 3.12 -v
