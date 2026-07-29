@@ -474,5 +474,5 @@ def main(page: ft.Page):
     page.add(vista_principal, vista_calendario)
     page.update()
 
-try:
-    ft.app(target=main, view=ft.Ap
+if __name__ == "__main__":
+    ft.app(target=main)
