@@ -79,43 +79,69 @@ def main(page: ft.Page):
         txt_beneficio.value = f"{b:.2f}"
         page.update()
 
-    # --- 3. MANEJO NATIVO DE ARCHIVOS (MODIFICADO PARA EVITAR PANTALLA ROJA) ---
-    def guardar_archivo_resultado(e: ft.FilePickerResultEvent):
-        # En Android, e.path nos dará la CARPETA que eligió el usuario.
-        if e.path:
+    # --- 3. GUARDADO Y CARGA MANUAL SEGURA ---
+    input_nombre_respaldo = ft.TextField(label="Nombre del respaldo", value="respaldo_ahorros.csv")
+    dlg_guardar = ft.AlertDialog(content=ft.Container())
+    dlg_cargar = ft.AlertDialog(content=ft.Container())
+
+    def ejecutar_guardado_manual(e):
+        nombre = input_nombre_respaldo.value.strip()
+        if not nombre.endswith(".csv"):
+            nombre += ".csv"
+        try:
+            shutil.copy(archivo, nombre)
+            cerrar_modal(dlg_guardar)
+            page.overlay.append(ft.SnackBar(ft.Text(f"Guardado como: {nombre}"), open=True))
+            page.update()
+        except Exception as ex:
+            page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar: {ex}"), open=True))
+            page.update()
+
+    def abrir_dialogo_guardar(e):
+        input_nombre_respaldo.value = "respaldo_ahorros.csv"
+        dlg_guardar.title = ft.Text("Guardar Respaldo")
+        dlg_guardar.content = ft.Column([
+            ft.Text("Se creará una copia de seguridad en la carpeta de la app."),
+            input_nombre_respaldo
+        ], tight=True)
+        dlg_guardar.actions = [
+            ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_guardar)),
+            ft.Button("Guardar", on_click=ejecutar_guardado_manual)
+        ]
+        abrir_modal(dlg_guardar)
+
+    input_nombre_carga = ft.TextField(label="Nombre del archivo a cargar", value="respaldo_ahorros.csv")
+
+    def ejecutar_carga_manual(e):
+        nombre = input_nombre_carga.value.strip()
+        if os.path.exists(nombre):
             try:
-                ruta_destino = os.path.join(e.path, "mis_ahorros_respaldo.csv")
-                shutil.copy(archivo, ruta_destino)
-                page.overlay.append(ft.SnackBar(ft.Text(f"Guardado en: {ruta_destino}"), open=True))
+                shutil.copy(nombre, archivo)
+                actualizar_pantalla()
+                if en_calendario[0]:
+                    renderizar_calendario_pantalla()
+                cerrar_modal(dlg_cargar)
+                page.overlay.append(ft.SnackBar(ft.Text("¡Datos restaurados con éxito!"), open=True))
                 page.update()
             except Exception as ex:
-                page.overlay.append(ft.SnackBar(ft.Text(f"Error al guardar: {ex}"), open=True))
+                page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar: {ex}"), open=True))
                 page.update()
+        else:
+            page.overlay.append(ft.SnackBar(ft.Text("No se encontró un archivo con ese nombre."), open=True))
+            page.update()
 
-    def cargar_archivo_resultado(e: ft.FilePickerResultEvent):
-        if e.files and len(e.files) > 0:
-            ruta_seleccionada = e.files[0].path
-            if ruta_seleccionada:
-                try:
-                    shutil.copy(ruta_seleccionada, archivo)
-                    actualizar_pantalla()
-                    if en_calendario[0]:
-                        renderizar_calendario_pantalla()
-                    page.overlay.append(ft.SnackBar(ft.Text("¡Datos restaurados con éxito!"), open=True))
-                    page.update()
-                except Exception as ex:
-                    page.overlay.append(ft.SnackBar(ft.Text(f"Error al cargar: {ex}"), open=True))
-                    page.update()
-
-    # Instanciamos de forma segura para que el compilador del APK los reconozca
-    picker_guardar = ft.FilePicker()
-    picker_guardar.on_result = guardar_archivo_resultado
-    page.overlay.append(picker_guardar)
-
-    picker_cargar = ft.FilePicker()
-    picker_cargar.on_result = cargar_archivo_resultado
-    page.overlay.append(picker_cargar)
-
+    def abrir_dialogo_cargar(e):
+        input_nombre_carga.value = "respaldo_ahorros.csv"
+        dlg_cargar.title = ft.Text("Cargar Respaldo")
+        dlg_cargar.content = ft.Column([
+            ft.Text("Escribe el nombre del archivo CSV a restaurar:"),
+            input_nombre_carga
+        ], tight=True)
+        dlg_cargar.actions = [
+            ft.TextButton("Cancelar", on_click=lambda ev: cerrar_modal(dlg_cargar)),
+            ft.Button("Cargar", on_click=ejecutar_carga_manual)
+        ]
+        abrir_modal(dlg_cargar)
 
     # --- 4. BARRA SUPERIOR Y TEMA DINÁMICO ---
     app_bar_title = ft.Text("MI BILLETERA", weight=ft.FontWeight.BOLD)
@@ -148,17 +174,12 @@ def main(page: ft.Page):
                 ft.PopupMenuItem(
                     content=ft.Text("Guardar"), 
                     icon="save", 
-                    on_click=lambda _: picker_guardar.get_directory_path(
-                        dialog_title="Elige una carpeta (Ej: Documentos o Descargas)"
-                    )
+                    on_click=abrir_dialogo_guardar
                 ),
                 ft.PopupMenuItem(
                     content=ft.Text("Cargar"), 
                     icon="file_upload", 
-                    on_click=lambda _: picker_cargar.pick_files(
-                        dialog_title="Busca tu archivo CSV", 
-                        allowed_extensions=["csv"]
-                    )
+                    on_click=abrir_dialogo_cargar
                 ),
                 ft.PopupMenuItem(content=ft.Text("Cambiar Tema"), icon="brightness_6", on_click=cambiar_tema),
                 ft.PopupMenuItem(content=ft.Text("Info de la App"), icon="info", on_click=lambda e: abrir_modal(dlg_info))
@@ -454,6 +475,4 @@ def main(page: ft.Page):
     page.update()
 
 try:
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
-except Exception:
-    ft.app(target=main)
+    ft.app(target=main, view=ft.Ap
